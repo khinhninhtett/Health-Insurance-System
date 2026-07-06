@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# User-uploaded verification photos (PII, generated at runtime)
+uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

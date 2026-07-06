@@ -8,6 +8,9 @@ interface User {
   email: string;
   role: "customer" | "hospital" | "admin";
   avatar: string;
+  verificationStatus?: "unverified" | "verified" | "rejected";
+  dateOfBirth?: string | null;
+  address?: string | null;
   [key: string]: unknown;
 }
 
@@ -17,6 +20,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   register: (data: RegisterData) => Promise<boolean>;
+  setSession: (user: User, token: string) => void;
+  updateUser: (patch: Partial<User>) => void;
 }
 
 interface RegisterData {
@@ -55,7 +60,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem("him_user");
+    localStorage.removeItem("him_token");
     toast.success("Logged out successfully");
+  };
+
+  const setSession = (sessionUser: User, token: string) => {
+    setUser(sessionUser);
+    localStorage.setItem("him_user", JSON.stringify(sessionUser));
+    localStorage.setItem("him_token", token);
+  };
+
+  const updateUser = (patch: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const merged = { ...prev, ...patch };
+      localStorage.setItem("him_user", JSON.stringify(merged));
+      return merged;
+    });
   };
 
   const register = async (data: RegisterData): Promise<boolean> => {
@@ -65,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, register }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, register, setSession, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

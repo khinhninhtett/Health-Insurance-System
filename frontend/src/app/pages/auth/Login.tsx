@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { useForm } from "react-hook-form";
 import { motion } from "motion/react";
 import { Heart, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 interface LoginForm {
   email: string;
@@ -14,6 +15,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { setSession } = useAuth();
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
   const onSubmit = async (data: LoginForm) => {
@@ -35,9 +37,9 @@ export default function Login() {
         throw new Error(result.message || "Invalid credentials");
       }
 
-      // Save user profile and JWT token into client storage
-      localStorage.setItem("him_user", JSON.stringify(result.user));
-      localStorage.setItem("him_token", result.token);
+      // Sync AuthContext (not just localStorage) so protected routes see the
+      // logged-in user immediately, without waiting for a full page reload.
+      setSession(result.user, result.token);
 
       // Handle Role-based routing matching your backend dynamic schema returns
       const redirects: Record<string, string> = {
@@ -45,7 +47,7 @@ export default function Login() {
         hospital: "/hospital/dashboard",
         admin: "/admin/dashboard",
       };
-      
+
       navigate(redirects[result.user.role] || "/login");
     } catch (err: any) {
       setErrorMsg(err.message || "An error occurred during authentication.");

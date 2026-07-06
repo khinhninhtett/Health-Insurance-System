@@ -1,11 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { motion } from "motion/react";
-import { Calculator, TrendingUp, AlertTriangle, CheckCircle } from "lucide-react";
-import { insurancePlans } from "../../data/mockData";
-import { formatCurrency, calculateBMI, getBMICategory, getRiskLevel } from "../../utils/helpers";
+import { Calculator, TrendingUp, AlertTriangle } from "lucide-react";
+import { apiFetch } from "../../utils/api";
+import { formatCurrency } from "../../utils/helpers";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
+import toast from "react-hot-toast";
+
+interface Plan {
+  id: number;
+  name: string;
+  monthly_premium: number;
+}
 
 interface CalcForm {
   age: number;
@@ -18,28 +25,48 @@ interface CalcForm {
 
 interface CalcResult {
   bmi: number;
-  bmiCategory: ReturnType<typeof getBMICategory>;
-  riskLevel: ReturnType<typeof getRiskLevel>;
-  basePremium: number;
+  bmiCategory: string;
+  riskLevel: string;
   monthlyPremium: number;
   annualPremium: number;
-  planName: string;
 }
 
 export default function PremiumCalculation() {
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [result, setResult] = useState<CalcResult | null>(null);
-  const { register, handleSubmit, formState: { errors } } = useForm<CalcForm>();
+  const [calculating, setCalculating] = useState(false);
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<CalcForm>();
 
-  const onSubmit = (data: CalcForm) => {
-    const bmi = calculateBMI(Number(data.heightCm), Number(data.weightKg));
-    const bmiCategory = getBMICategory(bmi);
-    const riskLevel = getRiskLevel(bmi, Number(data.age), data.hasChronicDisease);
-    const plan = insurancePlans.find((p) => p.id === data.planId) || insurancePlans[1];
-    let multiplier = riskLevel.multiplier;
-    if (data.smoker) multiplier *= 1.2;
-    const monthlyPremium = Math.round(plan.monthlyPremium * multiplier);
-    const annualPremium = monthlyPremium * 12 - Math.round(monthlyPremium * 0.5);
-    setResult({ bmi, bmiCategory, riskLevel, basePremium: plan.monthlyPremium, monthlyPremium, annualPremium, planName: plan.name });
+  useEffect(() => {
+    apiFetch("/api/plans").then((res) => {
+      setPlans(res.plans);
+      if (res.plans.length) setValue("planId", String(res.plans[0].id));
+    }).catch((err) => toast.error(err.message));
+  }, [setValue]);
+
+  const onSubmit = async (data: CalcForm) => {
+    const plan = plans.find((p) => p.id === Number(data.planId)) || plans[0];
+    if (!plan) return;
+
+    setCalculating(true);
+    try {
+      const res = await apiFetch("/api/premium/calculate", {
+        method: "POST",
+        body: JSON.stringify({
+          basePremium: plan.monthly_premium,
+          age: Number(data.age),
+          heightCm: Number(data.heightCm),
+          weightKg: Number(data.weightKg),
+          hasChronicDisease: data.hasChronicDisease,
+          smoker: data.smoker,
+        }),
+      });
+      setResult(res.result);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setCalculating(false);
+    }
   };
 
   return (
@@ -59,7 +86,7 @@ export default function PremiumCalculation() {
                 {...register("planId", { required: true })}
                 className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40"
               >
-                {insurancePlans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
 
@@ -102,9 +129,11 @@ export default function PremiumCalculation() {
 
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-teal-600 text-white font-medium hover:from-blue-700 hover:to-teal-700 transition-all shadow-md shadow-blue-500/20"
+              disabled={calculating}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-teal-600 text-white font-medium hover:from-blue-700 hover:to-teal-700 disabled:opacity-60 transition-all shadow-md shadow-blue-500/20"
             >
-              <Calculator className="w-4 h-4" /> Calculate Premium
+              {calculating ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Calculator className="w-4 h-4" />}
+              Calculate Premium
             </button>
           </form>
         </GlassCard>
@@ -118,25 +147,17 @@ export default function PremiumCalculation() {
                 <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
                   <p className="text-xs text-gray-400 mb-1">BMI</p>
                   <p className="text-xl font-bold text-gray-900 dark:text-white">{result.bmi}</p>
-                  <p className={`text-xs font-medium ${result.bmiCategory.color}`}>{result.bmiCategory.label}</p>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{result.bmiCategory}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
                   <p className="text-xs text-gray-400 mb-1">Risk Level</p>
-                  <p className={`text-xl font-bold ${result.riskLevel.color}`}>{result.riskLevel.level}</p>
-                  <p className="text-xs text-gray-400">{result.riskLevel.multiplier}x multiplier</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{result.riskLevel}</p>
+                  <p className="text-xs text-gray-400">COBOL-assessed</p>
                 </div>
               </div>
 
               <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-teal-50 dark:from-blue-900/20 dark:to-teal-900/20 border border-blue-200 dark:border-blue-800 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Plan</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{result.planName}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Base Premium</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(result.basePremium)}</span>
-                </div>
-                <div className="flex justify-between border-t border-blue-200 dark:border-blue-700 pt-3">
+                <div className="flex justify-between border-t border-blue-200 dark:border-blue-700 pt-3 first:border-0 first:pt-0">
                   <span className="font-semibold text-gray-700 dark:text-gray-300">Monthly Premium</span>
                   <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{formatCurrency(result.monthlyPremium)}</span>
                 </div>
@@ -152,7 +173,7 @@ export default function PremiumCalculation() {
                 <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">Note</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Final premium may vary after medical verification. This is an estimated calculation based on the information provided.</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">This is an estimate. Your actual premium is locked in when you select a plan, based on the medical verification an admin reviews.</p>
                 </div>
               </div>
             </GlassCard>
