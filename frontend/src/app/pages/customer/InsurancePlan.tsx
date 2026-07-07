@@ -1,25 +1,92 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { CheckCircle, Star, ArrowRight, Shield } from "lucide-react";
-import { insurancePlans } from "../../data/mockData";
+import { CheckCircle, Star, ArrowRight, Shield, Clock, ShieldAlert } from "lucide-react";
+import { apiFetch } from "../../utils/api";
 import { formatCurrency } from "../../utils/helpers";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
+import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
 
-const colorMap: Record<string, { gradient: string; border: string; badge: string }> = {
-  blue: { gradient: "from-blue-500 to-blue-700", border: "border-blue-200 dark:border-blue-700", badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  teal: { gradient: "from-teal-500 to-teal-700", border: "border-teal-200 dark:border-teal-700", badge: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400" },
-  purple: { gradient: "from-purple-500 to-purple-700", border: "border-purple-200 dark:border-purple-700", badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+interface Plan {
+  id: number;
+  name: string;
+  description: string;
+  coverage_amount: number;
+  monthly_premium: number;
+  annual_premium: number;
+  benefits: string[];
+  color: string;
+  popular: boolean;
+}
+
+interface UserPlan {
+  id: number;
+  plan_id: number;
+  status: string;
+  plan_name: string;
+}
+
+const colorMap: Record<string, { gradient: string; border: string }> = {
+  blue: { gradient: "from-blue-500 to-blue-700", border: "border-blue-200 dark:border-blue-700" },
+  teal: { gradient: "from-teal-500 to-teal-700", border: "border-teal-200 dark:border-teal-700" },
+  purple: { gradient: "from-purple-500 to-purple-700", border: "border-purple-200 dark:border-purple-700" },
+};
+
+const NEXT_STEP: Record<string, { label: string; path: string }> = {
+  pending_medical: { label: "Continue to medical verification", path: "/customer/medical-verification" },
+  pending_payment: { label: "Continue to payment", path: "/customer/payment" },
+  active: { label: "View insurance card", path: "/customer/insurance-card" },
 };
 
 export default function InsurancePlan() {
-  const [selected, setSelected] = useState("plan-002");
+  const { user } = useAuth();
+  const isVerified = user?.verificationStatus === "verified";
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [myPlan, setMyPlan] = useState<UserPlan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectingId, setSelectingId] = useState<number | null>(null);
+  const navigate = useNavigate();
 
-  const handleSelect = (planId: string) => {
-    setSelected(planId);
-    toast.success("Plan selected successfully!");
+  useEffect(() => {
+    Promise.all([apiFetch("/api/plans"), apiFetch("/api/plans/me")])
+      .then(([plansRes, myPlanRes]) => {
+        setPlans(plansRes.plans);
+        setMyPlan(myPlanRes.userPlan);
+      })
+      .catch((err) => toast.error(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const hasOpenEnrollment = myPlan && myPlan.status !== "rejected" && myPlan.status !== "expired";
+
+  const handleSelect = async (planId: number) => {
+    if (!isVerified) {
+      toast.error("Verify your identity before purchasing insurance.");
+      navigate("/customer/verify-profile");
+      return;
+    }
+
+    setSelectingId(planId);
+    try {
+      await apiFetch("/api/plans/select", { method: "POST", body: JSON.stringify({ planId }) });
+      toast.success("Plan selected! Let's verify your medical details next.");
+      navigate("/customer/medical-verification");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSelectingId(null);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -28,10 +95,52 @@ export default function InsurancePlan() {
         subtitle="Choose the plan that best fits your healthcare needs"
       />
 
+      {!isVerified && !hasOpenEnrollment && (
+        <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 flex items-center gap-4 flex-wrap">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+            <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-gray-900 dark:text-white">Verify your identity before buying insurance</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Upload your NRC photo and a personal photo to unlock plan purchases.</p>
+          </div>
+          <button
+            onClick={() => navigate("/customer/verify-profile")}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-medium hover:from-amber-600 hover:to-orange-700 transition-all shrink-0"
+          >
+            Verify now <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {hasOpenEnrollment && myPlan && (
+        <GlassCard className="p-5 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                You have an enrollment in progress: {myPlan.plan_name}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Status: {myPlan.status.replace("_", " ")}</p>
+            </div>
+          </div>
+          {NEXT_STEP[myPlan.status] && (
+            <button
+              onClick={() => navigate(NEXT_STEP[myPlan.status].path)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm hover:from-blue-700 hover:to-teal-700 transition-all"
+            >
+              {NEXT_STEP[myPlan.status].label} <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+        </GlassCard>
+      )}
+
       <div className="grid md:grid-cols-3 gap-6">
-        {insurancePlans.map((plan, i) => {
-          const colors = colorMap[plan.color];
-          const isSelected = selected === plan.id;
+        {plans.map((plan, i) => {
+          const colors = colorMap[plan.color] || colorMap.blue;
+          const isCurrent = myPlan?.plan_id === plan.id && hasOpenEnrollment;
 
           return (
             <motion.div
@@ -40,10 +149,10 @@ export default function InsurancePlan() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
               className={`relative rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
-                isSelected ? `${colors.border} shadow-xl shadow-black/10` : "border-gray-200 dark:border-gray-800"
+                isCurrent ? `${colors.border} shadow-xl shadow-black/10` : "border-gray-200 dark:border-gray-800"
               }`}
             >
-              {plan.popular && (
+              {!!plan.popular && (
                 <div className="absolute top-0 left-0 right-0 flex justify-center">
                   <div className={`px-4 py-1 text-xs font-semibold text-white bg-gradient-to-r ${colors.gradient} rounded-b-lg`}>
                     <Star className="w-3 h-3 inline mr-1" />Most Popular
@@ -61,7 +170,7 @@ export default function InsurancePlan() {
                 </div>
                 <div className="mt-4">
                   <p className="text-white/70 text-xs">Coverage Amount</p>
-                  <p className="text-white text-2xl font-semibold">{formatCurrency(plan.coverageAmount)}</p>
+                  <p className="text-white text-2xl font-semibold">{formatCurrency(plan.coverage_amount)}</p>
                 </div>
               </div>
 
@@ -69,11 +178,11 @@ export default function InsurancePlan() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">Monthly Premium</p>
-                    <p className="text-xl font-semibold text-gray-900 dark:text-white">{formatCurrency(plan.monthlyPremium)}</p>
+                    <p className="text-xl font-semibold text-gray-900 dark:text-white">{formatCurrency(plan.monthly_premium)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-500 dark:text-gray-400">Annual</p>
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{formatCurrency(plan.annualPremium)}</p>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{formatCurrency(plan.annual_premium)}</p>
                   </div>
                 </div>
 
@@ -90,13 +199,16 @@ export default function InsurancePlan() {
 
                 <button
                   onClick={() => handleSelect(plan.id)}
-                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium transition-all ${
-                    isSelected
+                  disabled={!!hasOpenEnrollment || selectingId === plan.id}
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isCurrent
                       ? `bg-gradient-to-r ${colors.gradient} text-white shadow-md`
                       : "border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
                 >
-                  {isSelected ? (
+                  {selectingId === plan.id ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : isCurrent ? (
                     <><CheckCircle className="w-4 h-4" /> Selected</>
                   ) : (
                     <>Select Plan <ArrowRight className="w-4 h-4" /></>
@@ -116,30 +228,21 @@ export default function InsurancePlan() {
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
                 <th className="text-left py-3 pr-4 text-gray-500 dark:text-gray-400 font-medium">Feature</th>
-                {insurancePlans.map((p) => (
+                {plans.map((p) => (
                   <th key={p.id} className="text-center py-3 px-4 text-gray-900 dark:text-white font-medium">{p.name}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {[
-                ["Coverage", ...insurancePlans.map((p) => formatCurrency(p.coverageAmount))],
-                ["Monthly Premium", ...insurancePlans.map((p) => formatCurrency(p.monthlyPremium))],
-                ["Annual Premium", ...insurancePlans.map((p) => formatCurrency(p.annualPremium))],
-                ["Outpatient Care", "✓", "✓", "✓"],
-                ["Emergency Care", "✓", "✓", "✓"],
-                ["Specialist Consult", "✗", "✓", "✓"],
-                ["Surgery", "✗", "✓", "✓"],
-                ["Dental & Vision", "✗", "✓", "✓"],
-                ["International Coverage", "✗", "✗", "✓"],
-                ["Cancer Treatment", "✗", "✗", "✓"],
+                ["Coverage", ...plans.map((p) => formatCurrency(p.coverage_amount))],
+                ["Monthly Premium", ...plans.map((p) => formatCurrency(p.monthly_premium))],
+                ["Annual Premium", ...plans.map((p) => formatCurrency(p.annual_premium))],
               ].map(([feature, ...vals]) => (
                 <tr key={feature} className="border-b border-gray-100 dark:border-gray-800">
                   <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">{feature}</td>
                   {vals.map((val, i) => (
-                    <td key={i} className={`text-center py-3 px-4 ${val === "✓" ? "text-emerald-500" : val === "✗" ? "text-gray-300 dark:text-gray-600" : "text-gray-900 dark:text-white"}`}>
-                      {val}
-                    </td>
+                    <td key={i} className="text-center py-3 px-4 text-gray-900 dark:text-white">{val}</td>
                   ))}
                 </tr>
               ))}

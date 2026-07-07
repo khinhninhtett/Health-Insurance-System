@@ -1,8 +1,9 @@
 import { NavLink, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  LayoutDashboard, Shield, FileText, Calculator, 
-  CreditCard, ClipboardList, LogOut, Heart,
+  LayoutDashboard, Shield, FileText, Calculator,
+  CreditCard, ClipboardList, LogOut, Heart, HeartPulse,
+  Users, BarChart3,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -10,18 +11,30 @@ interface SidebarProps {
   collapsed: boolean;
 }
 
-const customerNavItems = [
+export const customerNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/customer/dashboard" },
   { icon: Shield, label: "Insurance Plans", path: "/customer/plans" },
+  { icon: HeartPulse, label: "Medical Verification", path: "/customer/medical-verification" },
   { icon: Calculator, label: "Premium Calculator", path: "/customer/premium" },
   { icon: CreditCard, label: "Payment", path: "/customer/payment" },
   { icon: FileText, label: "Insurance Card", path: "/customer/insurance-card" },
   { icon: ClipboardList, label: "Claims", path: "/customer/claims" },
 ];
 
+export const adminNavItems = [
+  { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
+  { icon: HeartPulse, label: "Medical Verification", path: "/admin/medical-verification" },
+  { icon: CreditCard, label: "Payments", path: "/admin/payments" },
+  { icon: ClipboardList, label: "Claims", path: "/admin/claims" },
+  { icon: Users, label: "Customers", path: "/admin/customers" },
+  { icon: Shield, label: "Insurance Plans", path: "/admin/plans" },
+  { icon: BarChart3, label: "Reports", path: "/admin/reports" },
+];
+
 export default function Sidebar({ collapsed }: SidebarProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const navItems = user?.role === "admin" ? adminNavItems : customerNavItems;
 
   const handleLogout = () => {
     logout();
@@ -49,7 +62,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
               className="overflow-hidden"
             >
               <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">HealthInsure</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Customer Portal</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{user?.role === "admin" ? "Admin Portal" : "Customer Portal"}</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -57,7 +70,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
 
       {/* Nav Items */}
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-        {customerNavItems.map((item) => (
+        {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
