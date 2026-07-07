@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const cobolDir = path.join(__dirname, "../cobol");
 const binaryDir = path.join(__dirname, "../binaries");
 
-// Create binaries folder
+// Create binaries folder if it doesn't exist
 if (!fs.existsSync(binaryDir)) {
   fs.mkdirSync(binaryDir, { recursive: true });
 }
@@ -29,9 +29,7 @@ try {
   }
 
   cobolFiles.forEach(file => {
-
     const sourcePath = path.join(cobolDir, file);
-
     let baseName = path.basename(file, path.extname(file));
 
     // Avoid reserved keywords
@@ -47,14 +45,17 @@ try {
 
     console.log(`Compiling ${file}`);
 
+    // Points to the 3.1.2 compatible configuration file location
+    const configFilePath = "C:\\cobol\\share\\gnucobol\\config\\default.conf";
+
     execSync(
-      `cobc -x -free -o "${outputPath}" "${sourcePath}"`,
+      `cobc -conf="${configFilePath}" -x -free -o "${outputPath}" "${sourcePath}"`,
       {
         stdio: "inherit",
         env: {
           ...process.env,
-          COB_CONFIG_DIR: "C:\\msys64\\ucrt64\\share\\gnucobol\\config",
-          COB_COPY_DIR: "C:\\msys64\\ucrt64\\share\\gnucobol\\copy"
+          COB_CONFIG_DIR: "C:\\cobol\\share\\gnucobol\\config",
+          COB_COPY_DIR: "C:\\cobol\\share\\gnucobol\\copy"
         }
       }
     );
