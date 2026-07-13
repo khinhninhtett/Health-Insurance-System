@@ -27,6 +27,15 @@ export const submitClaim = async (req, res) => {
   }
 };
 
+export const getClaimTypes = async (req, res) => {
+  try {
+    const types = await ClaimService.getClaimTypes(req.user.id);
+    res.status(200).json({ success: true, types });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const getMyClaims = async (req, res) => {
   try {
     const claims = await ClaimService.getMyClaims(req.user.id);

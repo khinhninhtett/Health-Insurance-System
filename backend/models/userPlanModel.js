@@ -60,6 +60,18 @@ class UserPlanModel {
     return this.findById(id);
   }
 
+  // Policies the renewal scheduler must watch: anything active or suspended
+  // that has an end date.
+  static async findForRenewalReminders() {
+    const [rows] = await dbPool.execute(
+      `SELECT up.id, up.user_id, up.status, up.policy_number, up.end_date, p.name AS plan_name
+       FROM user_plans up
+       JOIN insurance_plans p ON p.id = up.plan_id
+       WHERE up.status IN ('active', 'suspended') AND up.end_date IS NOT NULL`
+    );
+    return rows;
+  }
+
   static async findAllForAdmin() {
     const [rows] = await dbPool.execute(
       `SELECT up.*, p.name AS plan_name, u.name AS customer_name, u.email AS customer_email

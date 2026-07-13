@@ -13,6 +13,7 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import claimRoutes from "./routes/claimRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import ReminderService from "./services/reminderService.js";
 
 dotenv.config();
 
@@ -49,4 +50,5 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
+    ReminderService.start();
 });

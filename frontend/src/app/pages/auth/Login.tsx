@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useForm } from "react-hook-form";
-import { motion } from "motion/react";
-import { Heart, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import AuthShell from "../../components/shared/AuthShell";
 
 interface LoginForm {
   email: string;
@@ -21,7 +21,7 @@ export default function Login() {
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     setErrorMsg(null);
-    
+
     try {
       const response = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
@@ -57,78 +57,67 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-teal-600 shadow-lg shadow-blue-500/30 mb-4">
-            <Heart className="w-7 h-7 text-white" />
+    <AuthShell
+      title="Welcome Back"
+      subtitle={
+        <>
+          New to InsureGlass?{" "}
+          <Link to="/register" className="text-emerald-400 underline hover:text-emerald-300">Sign up here</Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-gray-200 mb-2">Email Address</label>
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              {...register("email", { required: "Email is required", pattern: { value: /^\S+@\S+$/, message: "Invalid email" } })}
+              type="email"
+              placeholder="name@company.com"
+              className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#141b40] border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-all"
+            />
           </div>
-          <h1 className="text-gray-900 dark:text-white">Welcome back</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Sign in to HealthInsure Management</p>
+          {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email.message}</p>}
         </div>
 
-        {/* Card */}
-        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl p-6">
-          
-          {errorMsg && (
-            <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400 rounded-xl border border-red-200 dark:border-red-900">
-              {errorMsg}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email address</label>
-              <input
-                {...register("email", { required: "Email is required", pattern: { value: /^\S+@\S+$/, message: "Invalid email" } })}
-                type="email"
-                placeholder="you@example.com"
-                className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all"
-              />
-              {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Password</label>
-              <div className="relative">
-                <input
-                  {...register("password", { required: "Password is required" })}
-                  type={showPass ? "text" : "password"}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-2.5 pr-11 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all"
-                />
-                <button type="button" onClick={() => setShowPass((p) => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
-            </div>
-
-            <div className="flex justify-end">
-              <Link to="/forgot-password" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Forgot password?</Link>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-teal-600 text-white font-medium hover:from-blue-700 hover:to-teal-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md shadow-blue-500/20"
-            >
-              {loading ? <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <>Sign in <ArrowRight className="w-4 h-4" /></>}
+        <div>
+          <label className="block text-sm font-medium text-gray-200 mb-2">Password</label>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              {...register("password", { required: "Password is required" })}
+              type={showPass ? "text" : "password"}
+              placeholder="••••••••••••"
+              className="w-full pl-11 pr-11 py-3 rounded-xl bg-[#141b40] border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-all"
+            />
+            <button type="button" onClick={() => setShowPass((p) => !p)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200">
+              {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
-          </form>
-
-          <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-            Don't have an account?{" "}
-            <Link to="/register" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">Sign up</Link>
           </div>
+          {errors.password && <p className="mt-1 text-xs text-red-400">{errors.password.message}</p>}
         </div>
-      </motion.div>
-    </div>
+
+        <div className="flex justify-end">
+          <Link to="/forgot-password" className="text-xs text-gray-400 hover:text-emerald-400 transition-colors">Forgot password?</Link>
+        </div>
+
+        {errorMsg && (
+          <div className="p-3 text-sm text-red-400 bg-red-950/30 rounded-xl border border-red-900/50">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="pt-2 flex justify-center">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex items-center justify-center gap-2 px-12 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#04120b] font-semibold disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-lg shadow-emerald-500/25"
+          >
+            {loading ? <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : "Sign In to Portal"}
+          </button>
+        </div>
+      </form>
+    </AuthShell>
   );
 }

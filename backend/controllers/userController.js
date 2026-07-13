@@ -71,7 +71,7 @@ export const submitVerification = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Identity verification complete.",
+      message: "Documents submitted. An admin will review your identity shortly.",
       user: {
         id: updatedUser.id,
         verificationStatus: updatedUser.verification_status,

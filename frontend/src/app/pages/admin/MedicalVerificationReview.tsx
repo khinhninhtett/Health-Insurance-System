@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { HeartPulse, CheckCircle, XCircle, FileText, Clock } from "lucide-react";
 import { apiFetch, API_BASE } from "../../utils/api";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import { getStatusColor } from "../../utils/helpers";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
@@ -33,8 +34,8 @@ export default function MedicalVerificationReview() {
   const [note, setNote] = useState("");
   const [deciding, setDeciding] = useState(false);
 
-  const load = () => {
-    setLoading(true);
+  const load = (silent = false) => {
+    if (!silent) setLoading(true);
     apiFetch(`/api/admin/medical-verifications${filter !== "all" ? `?status=${filter}` : ""}`)
       .then((res) => setVerifications(res.verifications))
       .catch((err) => toast.error(err.message))
@@ -42,6 +43,7 @@ export default function MedicalVerificationReview() {
   };
 
   useEffect(load, [filter]);
+  useAutoRefresh(() => load(true));
 
   const decide = async (decision: "approved" | "rejected") => {
     if (!selected) return;
@@ -106,10 +108,10 @@ export default function MedicalVerificationReview() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(v.status)}`}>{v.status}</span>
+                  <span className={`w-24 py-1.5 rounded-lg text-sm font-medium text-center capitalize ${getStatusColor(v.status)}`}>{v.status}</span>
                   <button
                     onClick={() => setSelected(v)}
-                    className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    className="w-24 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-center text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
                     Review
                   </button>

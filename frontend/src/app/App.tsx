@@ -5,6 +5,9 @@ import { ThemeProvider } from "./context/ThemeContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "./components/layout/Layout";
 
+// Public pages
+import Landing from "./pages/Landing";
+
 // Auth pages
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -36,10 +39,10 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             {/* Public routes */}
+            <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/" element={<Navigate to="/login" replace />} />
 
             {/* Customer onboarding */}
             <Route
@@ -70,7 +73,7 @@ export default function App() {
             </Route>
 
             {/* Fallback */}
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
         <Toaster

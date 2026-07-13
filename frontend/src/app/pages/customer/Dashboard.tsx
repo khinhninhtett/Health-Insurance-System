@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { Shield, FileText, Activity, CheckCircle, Clock, AlertCircle, CreditCard, BadgeCheck, ArrowRight, ShieldAlert, Lock } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import { apiFetch } from "../../utils/api";
 import { formatCurrency, formatDate, getStatusColor } from "../../utils/helpers";
 import StatCard from "../../components/shared/StatCard";
@@ -19,6 +20,7 @@ interface UserPlan {
   coverage_amount: number;
   coverage_used: number;
   monthly_premium: number;
+  annual_premium: number;
 }
 
 interface Claim {
@@ -51,7 +53,7 @@ export default function CustomerDashboard() {
   const [myPlan, setMyPlan] = useState<UserPlan | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
 
-  useEffect(() => {
+  const load = () => {
     const token = localStorage.getItem("him_token");
     if (!token) return;
 
@@ -76,8 +78,11 @@ export default function CustomerDashboard() {
         setClaims(claimsRes.claims);
       })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, []);
+  useAutoRefresh(load);
 
   const stats = [
     { title: "Insurance Status", value: myPlan ? STATUS_LABEL[myPlan.status] : "Not started", icon: Shield, color: "teal" as const, index: 0 },
@@ -151,7 +156,10 @@ export default function CustomerDashboard() {
         </div>
         <span className={`px-2.5 py-1 rounded-full text-xs font-medium shrink-0 flex items-center gap-1 ${getStatusColor(user?.verificationStatus || "unverified")}`}>
           <BadgeCheck className="w-3.5 h-3.5" />
-          {user?.verificationStatus === "verified" ? "Verified" : user?.verificationStatus === "rejected" ? "Rejected" : "Unverified"}
+          {user?.verificationStatus === "verified" ? "Verified"
+            : user?.verificationStatus === "pending" ? "Pending approval"
+            : user?.verificationStatus === "rejected" ? "Rejected"
+            : "Unverified"}
         </span>
       </GlassCard>
 
@@ -162,20 +170,28 @@ export default function CustomerDashboard() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-gray-900 dark:text-white">
-              {user?.verificationStatus === "rejected" ? "Your identity verification was rejected" : "Verify your account to buy insurance"}
+              {user?.verificationStatus === "pending"
+                ? "Your identity verification is awaiting admin approval"
+                : user?.verificationStatus === "rejected"
+                  ? "Your identity verification was rejected"
+                  : "Verify your account to buy insurance"}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {user?.verificationStatus === "rejected"
-                ? "Please resubmit your NRC and personal photo."
-                : "Upload your NRC photo and a personal photo — it only takes a minute."}
+              {user?.verificationStatus === "pending"
+                ? "We'll notify you as soon as an admin reviews your documents."
+                : user?.verificationStatus === "rejected"
+                  ? "Please resubmit your NRC and personal photo."
+                  : "Upload your NRC photo and a personal photo — it only takes a minute."}
             </p>
           </div>
-          <button
-            onClick={() => navigate("/customer/verify-profile")}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-medium hover:from-amber-600 hover:to-orange-700 transition-all shrink-0"
-          >
-            Verify now <ArrowRight className="w-4 h-4" />
-          </button>
+          {user?.verificationStatus !== "pending" && (
+            <button
+              onClick={() => navigate("/customer/verify-profile")}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-medium hover:from-amber-600 hover:to-orange-700 transition-all shrink-0"
+            >
+              Verify now <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
 
@@ -251,8 +267,8 @@ export default function CustomerDashboard() {
                     <p className="font-semibold text-blue-600 dark:text-blue-400">{formatCurrency(myPlan.coverage_amount)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Monthly</p>
-                    <p className="font-semibold text-teal-600 dark:text-teal-400">{formatCurrency(myPlan.monthly_premium)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Premium / year</p>
+                    <p className="font-semibold text-teal-600 dark:text-teal-400">{formatCurrency(myPlan.annual_premium)}</p>
                   </div>
                 </div>
               </div>

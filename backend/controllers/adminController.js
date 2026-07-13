@@ -10,6 +10,7 @@ import ReportModel from "../models/reportModel.js";
 import MedicalService from "../services/medicalService.js";
 import PaymentService from "../services/paymentService.js";
 import ClaimService from "../services/claimService.js";
+import UserService from "../services/userService.js";
 import { uploadsDir } from "../middleware/uploadMiddleware.js";
 
 // Dashboard / reports
@@ -74,6 +75,15 @@ export const getCustomerPhotoAdmin = async (req, res) => {
     res.sendFile(resolvedPath);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const decideIdentityVerification = async (req, res) => {
+  try {
+    const user = await UserService.decideIdentity(req.params.id, req.body.decision);
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
@@ -173,6 +183,26 @@ export const getMedicalDocumentAdmin = async (req, res) => {
 export const getPaymentsAdmin = async (req, res) => {
   try {
     res.status(200).json({ success: true, payments: await PaymentModel.findAllForAdmin() });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getPaymentReceiptAdmin = async (req, res) => {
+  try {
+    const payment = await PaymentModel.findById(req.params.id);
+
+    if (!payment?.receipt_path) {
+      return res.status(404).json({ success: false, message: "Receipt not found." });
+    }
+
+    const resolvedPath = path.resolve(uploadsDir, payment.receipt_path);
+
+    if (!resolvedPath.startsWith(uploadsDir) || !fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ success: false, message: "Receipt not found." });
+    }
+
+    res.sendFile(resolvedPath);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { CheckCircle, Star, ArrowRight, Shield, Clock, ShieldAlert } from "lucide-react";
 import { apiFetch } from "../../utils/api";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import { formatCurrency } from "../../utils/helpers";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
@@ -43,13 +44,14 @@ const NEXT_STEP: Record<string, { label: string; path: string }> = {
 export default function InsurancePlan() {
   const { user } = useAuth();
   const isVerified = user?.verificationStatus === "verified";
+  const isPendingIdentity = user?.verificationStatus === "pending";
   const [plans, setPlans] = useState<Plan[]>([]);
   const [myPlan, setMyPlan] = useState<UserPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectingId, setSelectingId] = useState<number | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const load = () => {
     Promise.all([apiFetch("/api/plans"), apiFetch("/api/plans/me")])
       .then(([plansRes, myPlanRes]) => {
         setPlans(plansRes.plans);
@@ -57,14 +59,21 @@ export default function InsurancePlan() {
       })
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(load, []);
+  useAutoRefresh(load);
 
   const hasOpenEnrollment = myPlan && myPlan.status !== "rejected" && myPlan.status !== "expired";
 
   const handleSelect = async (planId: number) => {
     if (!isVerified) {
-      toast.error("Verify your identity before purchasing insurance.");
-      navigate("/customer/verify-profile");
+      if (isPendingIdentity) {
+        toast.error("Your identity verification is still awaiting admin approval.");
+      } else {
+        toast.error("Verify your identity before purchasing insurance.");
+        navigate("/customer/verify-profile");
+      }
       return;
     }
 
@@ -101,15 +110,23 @@ export default function InsurancePlan() {
             <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">Verify your identity before buying insurance</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Upload your NRC photo and a personal photo to unlock plan purchases.</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
+              {isPendingIdentity ? "Your identity verification is awaiting admin approval" : "Verify your identity before buying insurance"}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {isPendingIdentity
+                ? "You'll be able to purchase a plan once an admin approves your documents."
+                : "Upload your NRC photo and a personal photo to unlock plan purchases."}
+            </p>
           </div>
-          <button
-            onClick={() => navigate("/customer/verify-profile")}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-medium hover:from-amber-600 hover:to-orange-700 transition-all shrink-0"
-          >
-            Verify now <ArrowRight className="w-4 h-4" />
-          </button>
+          {!isPendingIdentity && (
+            <button
+              onClick={() => navigate("/customer/verify-profile")}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm font-medium hover:from-amber-600 hover:to-orange-700 transition-all shrink-0"
+            >
+              Verify now <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
 
@@ -148,7 +165,7 @@ export default function InsurancePlan() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className={`relative rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
+              className={`relative h-full flex flex-col rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
                 isCurrent ? `${colors.border} shadow-xl shadow-black/10` : "border-gray-200 dark:border-gray-800"
               }`}
             >
@@ -174,16 +191,15 @@ export default function InsurancePlan() {
                 </div>
               </div>
 
-              <div className="p-5 bg-white dark:bg-gray-900">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Monthly Premium</p>
-                    <p className="text-xl font-semibold text-gray-900 dark:text-white">{formatCurrency(plan.monthly_premium)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Annual</p>
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{formatCurrency(plan.annual_premium)}</p>
-                  </div>
+              <div className="p-5 bg-white dark:bg-gray-900 flex-1 flex flex-col">
+                <div className="mb-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Annual Premium</p>
+                  <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {formatCurrency(plan.annual_premium)} <span className="text-sm font-normal text-gray-400">/ year</span>
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Pay once, or in 12 monthly installments of {formatCurrency(Math.round(plan.annual_premium / 12))}
+                  </p>
                 </div>
 
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{plan.description}</p>
@@ -200,7 +216,7 @@ export default function InsurancePlan() {
                 <button
                   onClick={() => handleSelect(plan.id)}
                   disabled={!!hasOpenEnrollment || selectingId === plan.id}
-                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`mt-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     isCurrent
                       ? `bg-gradient-to-r ${colors.gradient} text-white shadow-md`
                       : "border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -236,8 +252,8 @@ export default function InsurancePlan() {
             <tbody>
               {[
                 ["Coverage", ...plans.map((p) => formatCurrency(p.coverage_amount))],
-                ["Monthly Premium", ...plans.map((p) => formatCurrency(p.monthly_premium))],
                 ["Annual Premium", ...plans.map((p) => formatCurrency(p.annual_premium))],
+                ["Monthly Installment (× 12)", ...plans.map((p) => formatCurrency(Math.round(p.annual_premium / 12)))],
               ].map(([feature, ...vals]) => (
                 <tr key={feature} className="border-b border-gray-100 dark:border-gray-800">
                   <td className="py-3 pr-4 text-gray-600 dark:text-gray-400">{feature}</td>

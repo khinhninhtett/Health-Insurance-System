@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import { mockUsers } from "../data/mockData";
+import { useTheme } from "./ThemeContext";
 import toast from "react-hot-toast";
 
 interface User {
@@ -8,7 +9,7 @@ interface User {
   email: string;
   role: "customer" | "hospital" | "admin";
   avatar: string;
-  verificationStatus?: "unverified" | "verified" | "rejected";
+  verificationStatus?: "unverified" | "pending" | "verified" | "rejected";
   dateOfBirth?: string | null;
   address?: string | null;
   [key: string]: unknown;
@@ -36,6 +37,7 @@ interface RegisterData {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { setDarkMode } = useTheme();
   const [user, setUser] = useState<User | null>(() => {
     const stored = localStorage.getItem("him_user");
     return stored ? JSON.parse(stored) : null;
@@ -68,6 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(sessionUser);
     localStorage.setItem("him_user", JSON.stringify(sessionUser));
     localStorage.setItem("him_token", token);
+    // Logged-in experience defaults to dark mode; users can still toggle after.
+    setDarkMode(true);
   };
 
   const updateUser = (patch: Partial<User>) => {

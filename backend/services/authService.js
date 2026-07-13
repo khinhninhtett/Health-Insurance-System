@@ -3,9 +3,22 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import CobolService from "./cobolService.js";
 
+// Myanmar mobile numbers: start with 09, 9–11 digits total (e.g. 09787950760).
+// Accepts the +959 / 959 international prefix and normalizes it to the 09 form.
+function normalizeMyanmarPhone(rawPhone) {
+  const digits = String(rawPhone || "").replace(/[\s-]/g, "").replace(/^\+?959/, "09");
+  return /^09\d{7,9}$/.test(digits) ? digits : null;
+}
+
 class AuthService {
   static async registerUser(userData) {
     const { name, email, phone, nrc, password, role } = userData;
+
+    const normalizedPhone = normalizeMyanmarPhone(phone);
+
+    if (!normalizedPhone) {
+      throw new Error("Please enter a valid Myanmar phone number, e.g. 09787950760 (starts with 09, up to 11 digits).");
+    }
 
     // Check if user already exists
     const existingUser = await UserModel.findByEmail(email);
@@ -34,7 +47,7 @@ class AuthService {
     const savedUser = await UserModel.create({
       name,
       email,
-      phone,
+      phone: normalizedPhone,
       nrc,
       password: hashedPassword,
       role,

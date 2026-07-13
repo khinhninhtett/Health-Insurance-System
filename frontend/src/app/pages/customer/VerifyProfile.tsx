@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { ShieldCheck, UploadCloud, ArrowRight } from "lucide-react";
+import { ShieldCheck, UploadCloud, ArrowRight, Clock } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 
 export default function VerifyProfile() {
   const { user, updateUser } = useAuth();
@@ -15,8 +16,48 @@ export default function VerifyProfile() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // While awaiting the admin's decision, poll the profile so the page moves
+  // on automatically the moment the admin approves or rejects.
+  useAutoRefresh(() => {
+    if (user?.verificationStatus !== "pending") return;
+    const token = localStorage.getItem("him_token");
+    fetch("http://localhost:5000/api/users/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((result) => {
+        if (result?.success && result.user.verificationStatus !== user?.verificationStatus) {
+          updateUser({ verificationStatus: result.user.verificationStatus });
+        }
+      })
+      .catch(() => {});
+  });
+
   if (user?.verificationStatus === "verified") {
     return <Navigate to="/customer/dashboard" replace />;
+  }
+
+  if (user?.verificationStatus === "pending") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-lg text-center">
+          <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md rounded-2xl border border-gray-200 dark:border-gray-800 shadow-xl p-10">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900/30 mb-4">
+              <Clock className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+            </div>
+            <h1 className="text-gray-900 dark:text-white">Verification pending</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              Your identity documents were submitted and are waiting for admin approval.
+              You'll be notified as soon as a decision is made — this page updates automatically.
+            </p>
+            <button
+              onClick={() => navigate("/customer/dashboard")}
+              className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm"
+            >
+              Go to dashboard <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
   }
 
   const onFileChange = (setter: (file: File | null) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,7 +102,6 @@ export default function VerifyProfile() {
       }
 
       updateUser({ verificationStatus: result.user.verificationStatus });
-      navigate("/customer/dashboard");
     } catch (err: any) {
       setErrorMsg(err.message || "Something went wrong while submitting your documents.");
     } finally {

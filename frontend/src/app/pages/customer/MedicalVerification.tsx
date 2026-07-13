@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { motion } from "motion/react";
 import { HeartPulse, UploadCloud, Clock, CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import { apiFetch } from "../../utils/api";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
 import toast from "react-hot-toast";
@@ -51,6 +52,7 @@ export default function MedicalVerification() {
   };
 
   useEffect(load, []);
+  useAutoRefresh(load);
 
   const onSubmit = async (data: FormValues) => {
     if (!file) {
