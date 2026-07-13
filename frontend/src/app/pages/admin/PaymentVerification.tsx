@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
-import { CheckCircle, XCircle, Eye, CreditCard } from "lucide-react";
+import { CheckCircle, XCircle, Eye, CreditCard, ImageOff, X } from "lucide-react";
 import { apiFetch } from "../../utils/api";
+import { useAuthenticatedImage } from "../../hooks/useAuthenticatedImage";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import { formatCurrency, formatDate, getStatusColor } from "../../utils/helpers";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
@@ -15,10 +18,16 @@ interface Payment {
   billing_cycle: string;
   method: string;
   transaction_id: string;
+  receipt_path: string | null;
   status: string;
   reason: string | null;
   createdAt: string;
 }
+
+const CYCLE_LABEL: Record<string, string> = {
+  yearly: "Annual payment",
+  monthly: "Monthly installment",
+};
 
 export default function PaymentVerification() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -33,6 +42,7 @@ export default function PaymentVerification() {
   };
 
   useEffect(load, []);
+  useAutoRefresh(load);
 
   const handleAction = async (id: number, action: "approved" | "rejected") => {
     try {
@@ -88,7 +98,7 @@ export default function PaymentVerification() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">{pay.customer_name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{pay.plan_name} · {pay.method} · {pay.billing_cycle}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{pay.plan_name} · {pay.method} · {CYCLE_LABEL[pay.billing_cycle] || pay.billing_cycle}</p>
                     <p className="text-xs text-gray-400">{formatDate(pay.createdAt)} · {pay.transaction_id}</p>
                   </div>
                 </div>
@@ -126,8 +136,8 @@ export default function PaymentVerification() {
                 ["Customer", selected.customer_name],
                 ["Plan", selected.plan_name],
                 ["Amount", formatCurrency(selected.amount)],
-                ["Billing Cycle", selected.billing_cycle],
-                ["Method", selected.method],
+                ["Payment Method", CYCLE_LABEL[selected.billing_cycle] || selected.billing_cycle],
+                ["Paid Via", selected.method],
                 ["Transaction ID", selected.transaction_id],
                 ["Date", formatDate(selected.createdAt)],
                 ["Reason", selected.reason || "—"],
@@ -137,6 +147,11 @@ export default function PaymentVerification() {
                   <span className="font-medium text-gray-900 dark:text-white text-right max-w-[60%]">{v}</span>
                 </div>
               ))}
+
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Transaction receipt</p>
+                <ReceiptImage paymentId={selected.id} hasReceipt={!!selected.receipt_path} />
+              </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={() => handleAction(selected.id, "rejected")} className="flex-1 py-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm border border-red-200">Reject</button>
                 <button onClick={() => handleAction(selected.id, "approved")} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm">Approve</button>
@@ -146,5 +161,69 @@ export default function PaymentVerification() {
         </motion.div>
       )}
     </div>
+  );
+}
+
+function ReceiptImage({ paymentId, hasReceipt }: { paymentId: number; hasReceipt: boolean }) {
+  const url = useAuthenticatedImage(hasReceipt ? `/api/admin/payments/${paymentId}/receipt` : null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!viewerOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setViewerOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [viewerOpen]);
+
+  if (!hasReceipt) {
+    return (
+      <div className="w-full h-32 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center gap-1 text-gray-400">
+        <ImageOff className="w-5 h-5" />
+        <span className="text-xs">No receipt uploaded</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="w-full rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {url ? (
+          <button type="button" onClick={() => setViewerOpen(true)} title="View full size" className="block w-full cursor-zoom-in">
+            <img src={url} alt="Transaction receipt" className="w-full max-h-64 object-contain" />
+          </button>
+        ) : (
+          <div className="h-32 flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+          </div>
+        )}
+      </div>
+
+      {viewerOpen && url && createPortal(
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8"
+          onClick={() => setViewerOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setViewerOpen(false)}
+            aria-label="Close photo view"
+            className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <motion.img
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            src={url}
+            alt="Transaction receipt full view"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </motion.div>,
+        document.body
+      )}
+    </>
   );
 }

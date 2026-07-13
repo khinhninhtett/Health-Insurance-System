@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 interface ThemeContextType {
   isDark: boolean;
   toggleTheme: () => void;
+  setDarkMode: (dark: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
@@ -10,7 +11,8 @@ const ThemeContext = createContext<ThemeContextType | null>(null);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
     const stored = localStorage.getItem("him_theme");
-    return stored ? stored === "dark" : false;
+    // Dark is the default; light only when the user explicitly switched.
+    return stored ? stored === "dark" : true;
   });
 
   useEffect(() => {
@@ -19,9 +21,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [isDark]);
 
   const toggleTheme = () => setIsDark((prev) => !prev);
+  const setDarkMode = (dark: boolean) => setIsDark(dark);
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDark, toggleTheme, setDarkMode }}>
       {children}
     </ThemeContext.Provider>
   );

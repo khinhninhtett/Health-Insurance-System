@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { useForm } from "react-hook-form";
 import { motion } from "motion/react";
-import { Heart, Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import { Shield, Mail, ArrowLeft, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function ForgotPassword() {
@@ -24,8 +24,8 @@ export default function ForgotPassword() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-teal-600 shadow-lg shadow-blue-500/30 mb-4">
-            <Heart className="w-7 h-7 text-white" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 shadow-lg shadow-emerald-500/20 mb-4">
+            <Shield className="w-7 h-7 text-emerald-500" />
           </div>
           <h1 className="text-gray-900 dark:text-white">Reset password</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">We'll send a reset link to your email</p>

@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { motion } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
+import { toJpeg } from "html-to-image";
 import { Download, Printer, Shield, Calendar, CreditCard, CheckCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../utils/api";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import { formatDate, formatCurrency } from "../../utils/helpers";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
@@ -26,13 +28,46 @@ export default function InsuranceCard() {
   const cardRef = useRef<HTMLDivElement>(null);
   const [myPlan, setMyPlan] = useState<UserPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => {
+  const handleDownload = async () => {
+    if (!cardRef.current || !myPlan) return;
+    setDownloading(true);
+    try {
+      // JPG has no transparency, so fill behind the card's rounded corners
+      // with the page background of the current theme.
+      const isDark = document.documentElement.classList.contains("dark");
+      const dataUrl = await toJpeg(cardRef.current, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: isDark ? "#111827" : "#f9fafb",
+        // Neutralize inherited layout offsets (auto margins, entry-animation
+        // transforms) so the clone renders at the canvas origin.
+        style: { margin: "0", transform: "none" },
+      });
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `insurance-card-${myPlan.policy_number}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("Insurance card downloaded!");
+    } catch {
+      toast.error("Could not generate the card image. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const load = () => {
     apiFetch("/api/plans/me")
       .then((res) => setMyPlan(res.userPlan))
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(load, []);
+  useAutoRefresh(load);
 
   if (loading) {
     return (
@@ -72,15 +107,24 @@ export default function InsuranceCard() {
             <button onClick={() => { toast.success("Printing..."); window.print(); }} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm">
               <Printer className="w-4 h-4" /> Print
             </button>
-            <button onClick={() => toast.success("Insurance card downloaded!")} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm hover:from-blue-700 hover:to-teal-700 transition-all shadow-md shadow-blue-500/20">
-              <Download className="w-4 h-4" /> Download
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-teal-600 text-white text-sm hover:from-blue-700 hover:to-teal-700 disabled:opacity-60 transition-all shadow-md shadow-blue-500/20"
+            >
+              {downloading ? (
+                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              {downloading ? "Preparing..." : "Download"}
             </button>
           </div>
         }
       />
 
-      <div className="max-w-lg mx-auto" ref={cardRef}>
-        <motion.div initial={{ opacity: 0, rotateY: -10 }} animate={{ opacity: 1, rotateY: 0 }} transition={{ duration: 0.5 }} className="rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/20">
+      <div className="max-w-lg mx-auto">
+        <motion.div ref={cardRef} initial={{ opacity: 0, rotateY: -10 }} animate={{ opacity: 1, rotateY: 0 }} transition={{ duration: 0.5 }} className="rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/20">
           <div className="bg-gradient-to-br from-blue-700 via-blue-800 to-teal-800 p-6 relative overflow-hidden">
             <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
             <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-white/5" />
@@ -88,8 +132,8 @@ export default function InsuranceCard() {
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-2">
-                  <Shield className="w-6 h-6 text-white" />
-                  <span className="text-white font-semibold">HealthInsure</span>
+                  <Shield className="w-6 h-6 text-emerald-400" />
+                  <span className="text-white font-semibold">Insure<span className="text-emerald-400">Glass</span></span>
                 </div>
                 <span className="bg-emerald-400 text-emerald-900 text-xs font-bold px-2.5 py-1 rounded-full">ACTIVE</span>
               </div>

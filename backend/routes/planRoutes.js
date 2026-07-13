@@ -4,9 +4,11 @@ import { getPlans, selectPlan, getMyPlan } from "../controllers/planController.j
 
 const router = express.Router();
 
+// Public: the landing page shows active plans without authentication.
+router.get("/", getPlans);
+
 router.use(protect);
 
-router.get("/", getPlans);
 router.post("/select", selectPlan);
 router.get("/me", getMyPlan);
 

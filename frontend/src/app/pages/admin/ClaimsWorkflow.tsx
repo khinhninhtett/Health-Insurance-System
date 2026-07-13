@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { FileText, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { apiFetch } from "../../utils/api";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import { formatCurrency, formatDate, getStatusColor } from "../../utils/helpers";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
@@ -32,6 +33,7 @@ export default function ClaimsWorkflow() {
   };
 
   useEffect(load, []);
+  useAutoRefresh(load);
 
   const handleAction = async (id: number, action: "approved" | "rejected") => {
     try {
@@ -55,7 +57,7 @@ export default function ClaimsWorkflow() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Claims Workflow" subtitle="Review claims — these auto-resolve via COBOL, override here if needed" />
+      <PageHeader title="Claims Workflow" subtitle="Review submitted claims and approve or reject them" />
 
       <div className="flex gap-2 flex-wrap">
         {["all", "pending", "approved", "rejected"].map((f) => (

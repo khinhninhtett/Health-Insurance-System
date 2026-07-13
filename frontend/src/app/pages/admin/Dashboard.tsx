@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Users, Shield, Clock, CreditCard, FileText, TrendingUp, DollarSign, Minus } from "lucide-react";
 import { apiFetch } from "../../utils/api";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import { formatCurrency } from "../../utils/helpers";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import StatCard from "../../components/shared/StatCard";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
 import toast from "react-hot-toast";
+import { Link, Route } from "react-router";
 
 const COLORS = ["#3B82F6", "#0D9488", "#8B5CF6", "#F59E0B"];
 
@@ -28,7 +30,7 @@ export default function AdminDashboard() {
   const [planDistributionData, setPlanDistributionData] = useState<Array<{ name: string; value: number }>>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = () => {
     Promise.all([apiFetch("/api/admin/stats"), apiFetch("/api/admin/reports")])
       .then(([statsRes, reportsRes]) => {
         setStats(statsRes.stats);
@@ -38,7 +40,10 @@ export default function AdminDashboard() {
       })
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(load, []);
+  useAutoRefresh(load);
 
   if (loading || !stats) {
     return (
@@ -49,14 +54,14 @@ export default function AdminDashboard() {
   }
 
   const cards = [
-    { title: "Total Customers", value: stats.totalCustomers, icon: Users, color: "blue" as const, index: 0 },
-    { title: "Active Policies", value: stats.activePolicies, icon: Shield, color: "teal" as const, index: 1 },
-    { title: "Pending Medical Reviews", value: stats.pendingVerifications, icon: Clock, color: "amber" as const, index: 2 },
-    { title: "Pending Payments", value: stats.pendingPayments, icon: CreditCard, color: "purple" as const, index: 3 },
-    { title: "Total Claims", value: stats.totalClaims, icon: FileText, color: "red" as const, index: 4 },
-    { title: "Revenue (MMK)", value: formatCurrency(stats.revenue), icon: TrendingUp, color: "emerald" as const, index: 5 },
-    { title: "Claims Paid (MMK)", value: formatCurrency(stats.expenses), icon: Minus, color: "red" as const, index: 6 },
-    { title: "Profit (MMK)", value: formatCurrency(stats.profit), icon: DollarSign, color: "teal" as const, index: 7 },
+    { title: "Total Customers", value: stats.totalCustomers, icon: Users, color: "blue" as const, index: 0 , route:"/admin/customers"},
+    { title: "Active Policies", value: stats.activePolicies, icon: Shield, color: "teal" as const, index: 1, route:"/admin/customers" },
+    { title: "Pending Medical Reviews", value: stats.pendingVerifications, icon: Clock, color: "amber" as const, index: 2 ,route:"/admin/medical-verification"},
+    { title: "Pending Payments", value: stats.pendingPayments, icon: CreditCard, color: "purple" as const, index: 3, route:"/admin/payments" },
+    { title: "Total Claims", value: stats.totalClaims, icon: FileText, color: "red" as const, index: 4 ,route:"/admin/claims"},
+    { title: "Revenue (MMK)", value: formatCurrency(stats.revenue), icon: TrendingUp, color: "emerald" as const, index: 5 ,route:"/admin/reports"},
+    { title: "Claims Paid (MMK)", value: formatCurrency(stats.expenses), icon: Minus, color: "red" as const, index: 6 ,route:"/admin/reports"},
+    { title: "Profit (MMK)", value: formatCurrency(stats.profit), icon: DollarSign, color: "teal" as const, index: 7 ,route:"/admin/reports"},
   ];
 
   return (
@@ -64,7 +69,7 @@ export default function AdminDashboard() {
       <PageHeader title="Admin Dashboard" subtitle="System overview and key metrics" />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {cards.map((c) => <StatCard key={c.title} {...c} />)}
+        {cards.map((c) =><Link key={c.title} to={c.route}> <StatCard key={c.title} {...c} /></Link>)}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">

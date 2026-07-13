@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     profile_photo_path VARCHAR(255) NULL,
     date_of_birth DATE NULL,
     address VARCHAR(500) NULL,
-    verification_status ENUM('unverified', 'verified', 'rejected') NOT NULL DEFAULT 'unverified',
+    verification_status ENUM('unverified', 'pending', 'verified', 'rejected') NOT NULL DEFAULT 'unverified',
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -45,10 +45,12 @@ CREATE TABLE IF NOT EXISTS user_plans (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     plan_id INT NOT NULL,
-    status ENUM('pending_medical', 'pending_payment', 'active', 'rejected', 'expired') NOT NULL DEFAULT 'pending_medical',
+    status ENUM('pending_medical', 'pending_payment', 'active', 'suspended', 'rejected', 'expired') NOT NULL DEFAULT 'pending_medical',
     policy_number VARCHAR(50) UNIQUE,
     monthly_premium BIGINT NOT NULL,
     annual_premium BIGINT NOT NULL DEFAULT 0,
+    -- Payment method for the 1-year policy: 'yearly' = single annual payment,
+    -- 'monthly' = annual premium split into 12 installments. Coverage is 1 year either way.
     billing_cycle ENUM('monthly', 'yearly') NULL,
     coverage_amount BIGINT NOT NULL,
     coverage_used BIGINT NOT NULL DEFAULT 0,
@@ -86,6 +88,7 @@ CREATE TABLE IF NOT EXISTS payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     user_plan_id INT NOT NULL,
+    installment_id INT NULL,
     method VARCHAR(50) NOT NULL,
     transaction_id VARCHAR(100) NOT NULL,
     amount BIGINT NOT NULL,
@@ -95,6 +98,35 @@ CREATE TABLE IF NOT EXISTS payments (
     reason VARCHAR(255),
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (user_plan_id) REFERENCES user_plans(id)
+);
+
+-- Monthly-installment schedule for a 1-year policy. Twelve rows are generated
+-- when a policy paying by installment is activated; installment 1 is the
+-- activation payment itself.
+CREATE TABLE IF NOT EXISTS installments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_plan_id INT NOT NULL,
+    installment_no INT NOT NULL,
+    amount BIGINT NOT NULL,
+    due_date DATE NOT NULL,
+    status ENUM('pending', 'paid', 'overdue') NOT NULL DEFAULT 'pending',
+    payment_id INT NULL,
+    paid_at TIMESTAMP NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_installment (user_plan_id, installment_no),
+    FOREIGN KEY (user_plan_id) REFERENCES user_plans(id)
+);
+
+-- Log of automatic reminders already sent, so the scheduler never sends the
+-- same reminder twice. installment_id is 0 for policy-level (renewal) reminders.
+CREATE TABLE IF NOT EXISTS reminder_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_plan_id INT NOT NULL,
+    installment_id INT NOT NULL DEFAULT 0,
+    reminder_type VARCHAR(50) NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_reminder (user_plan_id, installment_id, reminder_type),
     FOREIGN KEY (user_plan_id) REFERENCES user_plans(id)
 );
 

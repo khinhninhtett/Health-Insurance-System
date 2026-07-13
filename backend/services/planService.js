@@ -2,7 +2,7 @@ import PlanModel from "../models/planModel.js";
 import UserPlanModel from "../models/userPlanModel.js";
 import UserModel from "../models/userModel.js";
 
-const OPEN_STATUSES = ["pending_medical", "pending_payment", "active"];
+const OPEN_STATUSES = ["pending_medical", "pending_payment", "active", "suspended"];
 
 function generatePolicyNumber() {
   const year = new Date().getFullYear();

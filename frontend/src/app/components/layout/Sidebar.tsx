@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
   LayoutDashboard, Shield, FileText, Calculator,
-  CreditCard, ClipboardList, LogOut, Heart, HeartPulse,
+  CreditCard, ClipboardList, LogOut, HeartPulse,
   Users, BarChart3,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -49,8 +49,8 @@ export default function Sidebar({ collapsed }: SidebarProps) {
     >
       {/* Logo */}
       <div className={`flex items-center gap-3 px-4 py-5 border-b border-gray-200 dark:border-gray-800 ${collapsed ? "justify-center" : ""}`}>
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-teal-600 flex items-center justify-center shrink-0">
-          <Heart className="w-5 h-5 text-white" />
+        <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+          <Shield className="w-5 h-5 text-emerald-500" />
         </div>
         <AnimatePresence>
           {!collapsed && (
@@ -61,7 +61,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">HealthInsure</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">Insure<span className="text-emerald-500">Glass</span></p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{user?.role === "admin" ? "Admin Portal" : "Customer Portal"}</p>
             </motion.div>
           )}

@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { motion } from "motion/react";
 import { Plus, Upload, CheckCircle, Clock, XCircle, FileText, X, ArrowRight, AlertCircle } from "lucide-react";
 import { apiFetch } from "../../utils/api";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import { formatCurrency, formatDate, getStatusColor } from "../../utils/helpers";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
@@ -33,16 +34,15 @@ interface UserPlan {
   start_date: string | null;
 }
 
-const claimTypes = ["Outpatient", "Inpatient", "Emergency", "Surgery", "Dental", "Vision", "Mental Health", "Diagnostic"];
-
 const statusTimeline = (status: string) => [
   { label: "Submitted", done: true },
-  { label: "COBOL Review", done: true },
+  { label: "Admin Review", done: status !== "pending" },
   { label: status === "rejected" ? "Rejected" : "Approved", done: status === "approved" || status === "rejected" },
 ];
 
 export default function Claims() {
   const [myPlan, setMyPlan] = useState<UserPlan | null>(null);
+  const [claimTypes, setClaimTypes] = useState<string[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -52,16 +52,18 @@ export default function Claims() {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ClaimForm>();
 
   const load = () => {
-    Promise.all([apiFetch("/api/plans/me"), apiFetch("/api/claims/me")])
-      .then(([planRes, claimsRes]) => {
+    Promise.all([apiFetch("/api/plans/me"), apiFetch("/api/claims/me"), apiFetch("/api/claims/types")])
+      .then(([planRes, claimsRes, typesRes]) => {
         setMyPlan(planRes.userPlan);
         setClaims(claimsRes.claims);
+        setClaimTypes(typesRes.types);
       })
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false));
   };
 
   useEffect(load, []);
+  useAutoRefresh(load);
 
   const onSubmit = async (data: ClaimForm) => {
     setSubmitting(true);
@@ -75,7 +77,7 @@ export default function Claims() {
       if (document) formData.append("document", document);
 
       const res = await apiFetch("/api/claims", { method: "POST", body: formData });
-      toast[res.claim.status === "approved" ? "success" : "error"](res.message);
+      toast.success(res.message);
       setShowForm(false);
       reset();
       setDocument(null);
@@ -95,14 +97,7 @@ export default function Claims() {
     );
   }
 
-  const daysSinceStart = myPlan?.status === "active" && myPlan.start_date
-    ? Math.floor((Date.now() - new Date(myPlan.start_date).getTime()) / (1000 * 60 * 60 * 24))
-    : null;
-  const claimsUnlocked = daysSinceStart !== null && daysSinceStart >= 30;
-  const canFileClaims = myPlan?.status === "active" && claimsUnlocked;
-  const claimsUnlockDate = myPlan?.start_date
-    ? formatDate(new Date(new Date(myPlan.start_date).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString())
-    : null;
+  const canFileClaims = myPlan?.status === "active";
 
   return (
     <div className="space-y-6">
@@ -121,7 +116,7 @@ export default function Claims() {
         }
       />
 
-      {!canFileClaims && myPlan?.status !== "active" && (
+      {!canFileClaims && (
         <GlassCard className="p-5 flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
           <div className="flex-1">
@@ -131,18 +126,6 @@ export default function Claims() {
           <Link to="/customer/plans" className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline shrink-0">
             Go to plans <ArrowRight className="w-3.5 h-3.5" />
           </Link>
-        </GlassCard>
-      )}
-
-      {!canFileClaims && myPlan?.status === "active" && (
-        <GlassCard className="p-5 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">Claims open after your first month of coverage</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {claimsUnlockDate ? `You'll be able to file claims starting ${claimsUnlockDate}.` : "Your policy needs to be active for 30 days before you can file a claim."}
-            </p>
-          </div>
         </GlassCard>
       )}
 
@@ -211,9 +194,11 @@ export default function Claims() {
             <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Claim Type</label>
-                <select {...register("type", { required: true })} className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+                <select {...register("type", { required: true })} defaultValue="" className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40">
+                  <option value="" disabled>Select a covered benefit...</option>
                   {claimTypes.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
+                {errors.type && <p className="text-xs text-red-500 mt-1">Please select a claim type.</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Hospital</label>

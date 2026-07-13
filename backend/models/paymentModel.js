@@ -1,11 +1,11 @@
 import { dbPool } from "../config/db.js";
 
 class PaymentModel {
-  static async create({ userId, userPlanId, method, transactionId, amount, billingCycle, receiptPath }) {
+  static async create({ userId, userPlanId, installmentId = null, method, transactionId, amount, billingCycle, receiptPath }) {
     const [result] = await dbPool.execute(
-      `INSERT INTO payments (user_id, user_plan_id, method, transaction_id, amount, billing_cycle, receipt_path)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userId, userPlanId, method, transactionId, amount, billingCycle, receiptPath]
+      `INSERT INTO payments (user_id, user_plan_id, installment_id, method, transaction_id, amount, billing_cycle, receipt_path)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, userPlanId, installmentId, method, transactionId, amount, billingCycle, receiptPath]
     );
     return this.findById(result.insertId);
   }

@@ -6,6 +6,8 @@ import {
   getReports,
   getCustomers,
   getCustomerPhotoAdmin,
+  decideIdentityVerification,
+  getPaymentReceiptAdmin,
   searchAdmin,
   getPlansAdmin,
   createPlan,
@@ -29,6 +31,7 @@ router.get("/reports", getReports);
 
 router.get("/customers", getCustomers);
 router.get("/customers/:id/photo/:type", getCustomerPhotoAdmin);
+router.post("/customers/:id/identity-decision", decideIdentityVerification);
 router.get("/search", searchAdmin);
 
 router.get("/plans", getPlansAdmin);
@@ -41,6 +44,7 @@ router.post("/medical-verifications/:id/decision", decideMedicalVerification);
 router.get("/medical-verifications/:id/document", getMedicalDocumentAdmin);
 
 router.get("/payments", getPaymentsAdmin);
+router.get("/payments/:id/receipt", getPaymentReceiptAdmin);
 router.post("/payments/:id/override", overridePayment);
 
 router.get("/claims", getClaimsAdmin);

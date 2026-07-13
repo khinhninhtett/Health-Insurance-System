@@ -68,6 +68,11 @@ class UserModel {
     return this.findById(id);
   }
 
+  static async setVerificationStatus(id, status) {
+    await dbPool.execute("UPDATE users SET verification_status = ? WHERE id = ?", [status, id]);
+    return this.findById(id);
+  }
+
   // List customers with their latest enrollment status, for the admin panel
   static async findAllCustomersForAdmin() {
     const [rows] = await dbPool.execute(

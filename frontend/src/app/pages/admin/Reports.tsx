@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { Download, FileText, BarChart3, Users, TrendingUp } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { apiFetch } from "../../utils/api";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import { formatCurrency } from "../../utils/helpers";
 import GlassCard from "../../components/shared/GlassCard";
 import PageHeader from "../../components/shared/PageHeader";
@@ -15,11 +16,22 @@ const reports = [
   { id: "claims", icon: FileText, title: "Claims Report" },
 ];
 
-const exportFormats = [
-  { label: "PDF", icon: "📄" },
-  { label: "Excel", icon: "📊" },
-  { label: "CSV", icon: "📋" },
-];
+const downloadCSV = (filename: string, headers: string[], rows: (string | number)[][]) => {
+  const escape = (v: string | number) => {
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
 interface RevenueRow {
   month: string;
@@ -34,7 +46,7 @@ export default function Reports() {
   const [customerGrowthData, setCustomerGrowthData] = useState<Array<{ month: string; customers: number }>>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = () => {
     apiFetch("/api/admin/reports")
       .then((res) => {
         setRevenueData(res.revenueData);
@@ -42,10 +54,39 @@ export default function Reports() {
       })
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  };
 
-  const handleExport = (format: string) => {
-    toast("Export isn't implemented yet — showing on-screen only.", { icon: "ℹ️" });
+  useEffect(load, []);
+  useAutoRefresh(load);
+
+  const handleExport = () => {
+    const date = new Date().toISOString().slice(0, 10);
+
+    if (activeReport === "customers") {
+      if (!customerGrowthData.length) {
+        toast.error("No customer data to export yet.");
+        return;
+      }
+      downloadCSV(
+        `customer-report-${date}.csv`,
+        ["Month", "Customers"],
+        customerGrowthData.map((r) => [r.month, r.customers])
+      );
+      toast.success("Customer report exported.");
+      return;
+    }
+
+    if (!revenueData.length) {
+      toast.error("No financial data to export yet.");
+      return;
+    }
+    const name = activeReport === "profit" ? "profit-loss-report" : activeReport === "claims" ? "claims-report" : "revenue-report";
+    downloadCSV(
+      `${name}-${date}.csv`,
+      ["Month", "Revenue", "Claims Paid", "Profit", "Margin (%)"],
+      revenueData.map((r) => [r.month, r.revenue, r.claims, r.profit, r.revenue ? ((r.profit / r.revenue) * 100).toFixed(1) : "0.0"])
+    );
+    toast.success("Report exported.");
   };
 
   if (loading) {
@@ -62,13 +103,9 @@ export default function Reports() {
         title="Reports & Analytics"
         subtitle="Generate and export system reports"
         action={
-          <div className="flex gap-2">
-            {exportFormats.map(({ label, icon }) => (
-              <button key={label} onClick={() => handleExport(label)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm">
-                <span>{icon}</span> {label}
-              </button>
-            ))}
-          </div>
+          <button onClick={handleExport} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md hover:opacity-90 transition-opacity text-sm font-medium">
+            <Download className="w-4 h-4" /> Export Report
+          </button>
         }
       />
 
@@ -169,8 +206,22 @@ export default function Reports() {
       <GlassCard className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-gray-900 dark:text-white">Financial Summary</h3>
-          <button onClick={() => handleExport("Excel")} className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline">
-            <Download className="w-3.5 h-3.5" /> Excel
+          <button
+            onClick={() => {
+              if (!revenueData.length) {
+                toast.error("No financial data to export yet.");
+                return;
+              }
+              downloadCSV(
+                `financial-summary-${new Date().toISOString().slice(0, 10)}.csv`,
+                ["Month", "Revenue", "Claims Paid", "Profit", "Margin (%)"],
+                revenueData.map((r) => [r.month, r.revenue, r.claims, r.profit, r.revenue ? ((r.profit / r.revenue) * 100).toFixed(1) : "0.0"])
+              );
+              toast.success("Financial summary exported.");
+            }}
+            className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
           </button>
         </div>
         {revenueData.length ? (
