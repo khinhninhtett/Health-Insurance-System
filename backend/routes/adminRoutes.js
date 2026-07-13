@@ -19,6 +19,7 @@ import {
   getPaymentsAdmin,
   overridePayment,
   getClaimsAdmin,
+  getClaimDocumentAdmin,
   overrideClaim,
 } from "../controllers/adminController.js";
 
@@ -48,6 +49,7 @@ router.get("/payments/:id/receipt", getPaymentReceiptAdmin);
 router.post("/payments/:id/override", overridePayment);
 
 router.get("/claims", getClaimsAdmin);
+router.get("/claims/:id/document", getClaimDocumentAdmin);
 router.post("/claims/:id/override", overrideClaim);
 
 export default router;

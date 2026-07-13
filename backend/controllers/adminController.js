@@ -226,6 +226,26 @@ export const getClaimsAdmin = async (req, res) => {
   }
 };
 
+export const getClaimDocumentAdmin = async (req, res) => {
+  try {
+    const claim = await ClaimModel.findById(req.params.id);
+
+    if (!claim?.document_path) {
+      return res.status(404).json({ success: false, message: "Document not found." });
+    }
+
+    const resolvedPath = path.resolve(uploadsDir, claim.document_path);
+
+    if (!resolvedPath.startsWith(uploadsDir) || !fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ success: false, message: "Document not found." });
+    }
+
+    res.sendFile(resolvedPath);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const overrideClaim = async (req, res) => {
   try {
     const claim = await ClaimService.adminOverride(req.params.id, req.body.decision);
