@@ -2,6 +2,7 @@ import path from "path";
 import fs from "fs";
 import UserModel from "../models/userModel.js";
 import PlanModel from "../models/planModel.js";
+import UserPlanModel from "../models/userPlanModel.js";
 import SearchModel from "../models/searchModel.js";
 import MedicalVerificationModel from "../models/medicalVerificationModel.js";
 import PaymentModel from "../models/paymentModel.js";
@@ -116,8 +117,32 @@ export const updatePlan = async (req, res) => {
 
 export const archivePlan = async (req, res) => {
   try {
-    await PlanModel.archive(req.params.id);
-    res.status(200).json({ success: true });
+    const activeSubscribers = await UserPlanModel.countActiveByPlanId(req.params.id);
+
+    if (activeSubscribers > 0) {
+      await PlanModel.archive(req.params.id);
+      return res.status(200).json({ success: true, action: "archived" });
+    }
+
+    try {
+      // No active policyholders — safe to remove outright instead of archiving.
+      await PlanModel.remove(req.params.id);
+      return res.status(200).json({ success: true, action: "deleted" });
+    } catch {
+      // Past (non-active) policies still reference this plan, so the FK
+      // constraint blocks the delete — fall back to archiving it instead.
+      await PlanModel.archive(req.params.id);
+      return res.status(200).json({ success: true, action: "archived" });
+    }
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const restorePlan = async (req, res) => {
+  try {
+    const plan = await PlanModel.restore(req.params.id);
+    res.status(200).json({ success: true, plan });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

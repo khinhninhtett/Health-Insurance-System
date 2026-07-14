@@ -152,7 +152,7 @@ export default function PremiumCalculation() {
                 <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
                   <p className="text-xs text-gray-400 mb-1">Risk Level</p>
                   <p className="text-xl font-bold text-gray-900 dark:text-white">{result.riskLevel}</p>
-                  <p className="text-xs text-gray-400">COBOL-assessed</p>
+                 
                 </div>
               </div>
 
