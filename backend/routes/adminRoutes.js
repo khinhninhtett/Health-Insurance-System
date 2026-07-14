@@ -13,6 +13,7 @@ import {
   createPlan,
   updatePlan,
   archivePlan,
+  restorePlan,
   getMedicalVerifications,
   decideMedicalVerification,
   getMedicalDocumentAdmin,
@@ -39,6 +40,7 @@ router.get("/plans", getPlansAdmin);
 router.post("/plans", createPlan);
 router.put("/plans/:id", updatePlan);
 router.delete("/plans/:id", archivePlan);
+router.post("/plans/:id/restore", restorePlan);
 
 router.get("/medical-verifications", getMedicalVerifications);
 router.post("/medical-verifications/:id/decision", decideMedicalVerification);

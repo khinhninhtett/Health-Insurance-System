@@ -72,6 +72,14 @@ class UserPlanModel {
     return rows;
   }
 
+  static async countActiveByPlanId(planId) {
+    const [rows] = await dbPool.execute(
+      "SELECT COUNT(*) AS count FROM user_plans WHERE plan_id = ? AND status = 'active'",
+      [planId]
+    );
+    return rows[0].count;
+  }
+
   static async findAllForAdmin() {
     const [rows] = await dbPool.execute(
       `SELECT up.*, p.name AS plan_name, u.name AS customer_name, u.email AS customer_email

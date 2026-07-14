@@ -46,6 +46,15 @@ class PlanModel {
     await dbPool.execute("UPDATE insurance_plans SET status = 'archived' WHERE id = ?", [id]);
     return this.findById(id);
   }
+
+  static async restore(id) {
+    await dbPool.execute("UPDATE insurance_plans SET status = 'active' WHERE id = ?", [id]);
+    return this.findById(id);
+  }
+
+  static async remove(id) {
+    await dbPool.execute("DELETE FROM insurance_plans WHERE id = ?", [id]);
+  }
 }
 
 export default PlanModel;

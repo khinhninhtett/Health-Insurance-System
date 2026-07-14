@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Plus, Edit2, Trash2, Shield, X, CheckCircle, Star } from "lucide-react";
+import { Plus, Edit2, Trash2, Shield, X, CheckCircle, Star, RotateCcw } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { apiFetch } from "../../utils/api";
 import { useAutoRefresh } from "../../hooks/useAutoRefresh";
@@ -100,8 +100,18 @@ export default function InsurancePlans() {
 
   const deletePlan = async (id: number) => {
     try {
-      await apiFetch(`/api/admin/plans/${id}`, { method: "DELETE" });
-      toast.success("Plan archived");
+      const res = await apiFetch(`/api/admin/plans/${id}`, { method: "DELETE" });
+      toast.success(res.action === "deleted" ? "Plan permanently deleted" : "Plan archived");
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const restorePlan = async (id: number) => {
+    try {
+      await apiFetch(`/api/admin/plans/${id}/restore`, { method: "POST" });
+      toast.success("Plan restored");
       load();
     } catch (err: any) {
       toast.error(err.message);
@@ -166,13 +176,21 @@ export default function InsurancePlans() {
                     >
                       <Edit2 className="w-3.5 h-3.5 text-white" />
                     </button>
-                    {plan.status === "active" && (
+                    {plan.status === "active" ? (
                       <button
                         onClick={() => deletePlan(plan.id)}
                         title="Archive plan"
                         className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-red-500/60 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-white" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => restorePlan(plan.id)}
+                        title="Restore plan"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-emerald-500/60 transition-colors"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-white" />
                       </button>
                     )}
                     <Shield className="w-8 h-8 text-white/60 ml-1" />
